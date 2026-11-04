@@ -2,17 +2,40 @@
 #include <string.h>
 #include "campus.h"
 
+const char *job_status_name(JobStatus s)
+{
+    switch (s) {
+    case JOB_NEW:        return "NEW";
+    case JOB_READY:      return "READY";
+    case JOB_RUNNING:    return "RUNNING";
+    case JOB_WAITING:    return "WAITING";
+    case JOB_TERMINATED: return "TERMINATED";
+    default:             return "?";
+    }
+}
+
 static void load_sample(Job *jobs, int *n)
 {
-    /* id, arrival, burst, priority */
+    /* id, arrival, burst, priority — status starts NEW */
     Job sample[] = {
-        {1, 0, 5, 2, 0, 0, 0, 0},
-        {2, 1, 3, 1, 0, 0, 0, 0},
-        {3, 2, 8, 3, 0, 0, 0, 0},
-        {4, 3, 6, 2, 0, 0, 0, 0},
+        {1, 0, 5, 2, JOB_NEW, 0, 0, 0, 0},
+        {2, 1, 3, 1, JOB_NEW, 0, 0, 0, 0},
+        {3, 2, 8, 3, JOB_NEW, 0, 0, 0, 0},
+        {4, 3, 6, 2, JOB_NEW, 0, 0, 0, 0},
     };
     *n = 4;
     memcpy(jobs, sample, sizeof(sample));
+}
+
+static void print_job_table(const Job *jobs, int n)
+{
+    int i;
+    printf("  ID  Arrival  Burst  Priority  Status\n");
+    for (i = 0; i < n; i++) {
+        printf("  %-3d %-8d %-6d %-9d %s\n",
+               jobs[i].id, jobs[i].arrival, jobs[i].burst, jobs[i].priority,
+               job_status_name(jobs[i].status));
+    }
 }
 
 static int read_jobs(Job *jobs, int *n)
@@ -30,12 +53,8 @@ static int read_jobs(Job *jobs, int *n)
 
     if (choice == 1) {
         load_sample(jobs, n);
-        printf("Loaded sample jobs:\n");
-        printf("  ID  Arrival  Burst  Priority\n");
-        for (i = 0; i < *n; i++) {
-            printf("  %-3d %-8d %-6d %d\n",
-                   jobs[i].id, jobs[i].arrival, jobs[i].burst, jobs[i].priority);
-        }
+        printf("Loaded sample jobs (lifecycle starts at NEW):\n");
+        print_job_table(jobs, *n);
         return 0;
     }
 
@@ -63,11 +82,14 @@ static int read_jobs(Job *jobs, int *n)
             printf("Error: id>0, arrival>=0, burst>0, priority>=0 required.\n");
             return -1;
         }
+        jobs[i].status = JOB_NEW;
         jobs[i].remaining = 0;
         jobs[i].completion = 0;
         jobs[i].turnaround = 0;
         jobs[i].waiting = 0;
     }
+    printf("Jobs accepted (status=NEW):\n");
+    print_job_table(jobs, *n);
     return 0;
 }
 
@@ -79,6 +101,7 @@ static void reset_metrics(Job *jobs, int n)
         jobs[i].completion = 0;
         jobs[i].turnaround = 0;
         jobs[i].waiting = 0;
+        jobs[i].status = JOB_NEW;
     }
 }
 
@@ -89,16 +112,38 @@ static void print_results(Job *jobs, int n, const char *algo, const char *rules)
 
     printf("\n--- %s ---\n", algo);
     printf("Rules: %s\n", rules);
-    printf("ID  Arrival  Burst  Priority  CT   TAT  WT\n");
+    printf("ID  Arrival  Burst  Priority  CT   TAT  WT   Status\n");
     for (i = 0; i < n; i++) {
-        printf("%-3d %-8d %-6d %-9d %-4d %-4d %d\n",
+        printf("%-3d %-8d %-6d %-9d %-4d %-4d %-4d %s\n",
                jobs[i].id, jobs[i].arrival, jobs[i].burst, jobs[i].priority,
-               jobs[i].completion, jobs[i].turnaround, jobs[i].waiting);
+               jobs[i].completion, jobs[i].turnaround, jobs[i].waiting,
+               job_status_name(jobs[i].status));
         avg_tat += jobs[i].turnaround;
         avg_wt += jobs[i].waiting;
     }
     printf("Average turnaround time: %.2f\n", avg_tat / n);
     printf("Average waiting time:    %.2f\n", avg_wt / n);
+}
+
+/* Average waiting time only — used for side-by-side comparison. */
+static double avg_waiting(const Job *jobs, int n)
+{
+    int i;
+    double sum = 0;
+    for (i = 0; i < n; i++) {
+        sum += jobs[i].waiting;
+    }
+    return sum / n;
+}
+
+static double avg_turnaround(const Job *jobs, int n)
+{
+    int i;
+    double sum = 0;
+    for (i = 0; i < n; i++) {
+        sum += jobs[i].turnaround;
+    }
+    return sum / n;
 }
 
 /* Sort index order by arrival, then id (tie-break). */
@@ -129,6 +174,7 @@ static void run_fcfs(Job *jobs, int n)
     reset_metrics(jobs, n);
     sort_by_arrival(jobs, n, order);
 
+    printf("Lifecycle: NEW -> READY -> RUNNING -> TERMINATED\n");
     printf("Gantt: ");
 
     for (i = 0; i < n; i++) {
@@ -136,11 +182,14 @@ static void run_fcfs(Job *jobs, int n)
         if (time < jobs[idx].arrival) {
             time = jobs[idx].arrival;
         }
+        jobs[idx].status = JOB_READY;
+        jobs[idx].status = JOB_RUNNING;
         printf("| J%d ", jobs[idx].id);
         time += jobs[idx].burst;
         jobs[idx].completion = time;
         jobs[idx].turnaround = jobs[idx].completion - jobs[idx].arrival;
         jobs[idx].waiting = jobs[idx].turnaround - jobs[idx].burst;
+        jobs[idx].status = JOB_TERMINATED;
     }
     printf("| %d\n", time);
     print_results(jobs, n, "FCFS",
@@ -153,6 +202,7 @@ static void run_priority(Job *jobs, int n)
     int completed = 0, time = 0;
 
     reset_metrics(jobs, n);
+    printf("Lifecycle: NEW -> READY -> RUNNING -> TERMINATED\n");
     printf("Gantt: ");
 
     while (completed < n) {
@@ -162,6 +212,9 @@ static void run_priority(Job *jobs, int n)
         for (i = 0; i < n; i++) {
             if (done[i] || jobs[i].arrival > time) {
                 continue;
+            }
+            if (jobs[i].status == JOB_NEW) {
+                jobs[i].status = JOB_READY;
             }
             if (best < 0) {
                 best = i;
@@ -177,7 +230,7 @@ static void run_priority(Job *jobs, int n)
         }
 
         if (best < 0) {
-            /* jump to next arrival */
+            /* CPU idle: jump clock to next arrival */
             int next = -1;
             for (i = 0; i < n; i++) {
                 if (!done[i] && (next < 0 || jobs[i].arrival < jobs[next].arrival)) {
@@ -188,11 +241,13 @@ static void run_priority(Job *jobs, int n)
             continue;
         }
 
+        jobs[best].status = JOB_RUNNING;
         printf("| J%d ", jobs[best].id);
         time += jobs[best].burst;
         jobs[best].completion = time;
         jobs[best].turnaround = jobs[best].completion - jobs[best].arrival;
         jobs[best].waiting = jobs[best].turnaround - jobs[best].burst;
+        jobs[best].status = JOB_TERMINATED;
         done[best] = 1;
         completed++;
     }
@@ -201,6 +256,11 @@ static void run_priority(Job *jobs, int n)
                   "higher priority number wins; tie-break: earlier arrival, then smaller id");
 }
 
+/*
+ * Round Robin: fixed quantum RR_QUANTUM. Ready queue is FIFO.
+ * Jobs that arrive during a slice are enqueued after the current slice
+ * (before a preempted job is re-queued).
+ */
 static void run_rr(Job *jobs, int n)
 {
     int queue[MAX_JOBS * 4];
@@ -210,18 +270,18 @@ static void run_rr(Job *jobs, int n)
 
     reset_metrics(jobs, n);
 
-    /* enqueue jobs that arrive at 0 */
     for (i = 0; i < n; i++) {
         if (jobs[i].arrival == 0) {
+            jobs[i].status = JOB_READY;
             queue[rear++] = i;
             in_queue[i] = 1;
         }
     }
 
+    printf("Lifecycle: NEW -> READY <-> RUNNING -> TERMINATED (preempt -> READY)\n");
     printf("Gantt (quantum=%d): ", RR_QUANTUM);
 
     if (rear == 0) {
-        /* find earliest arrival */
         int earliest = jobs[0].arrival;
         for (i = 1; i < n; i++) {
             if (jobs[i].arrival < earliest) {
@@ -231,6 +291,7 @@ static void run_rr(Job *jobs, int n)
         time = earliest;
         for (i = 0; i < n; i++) {
             if (jobs[i].arrival == time) {
+                jobs[i].status = JOB_READY;
                 queue[rear++] = i;
                 in_queue[i] = 1;
             }
@@ -254,6 +315,7 @@ static void run_rr(Job *jobs, int n)
             time = jobs[next].arrival;
             for (i = 0; i < n; i++) {
                 if (!in_queue[i] && jobs[i].remaining > 0 && jobs[i].arrival <= time) {
+                    jobs[i].status = JOB_READY;
                     queue[rear++] = i;
                     in_queue[i] = 1;
                 }
@@ -262,14 +324,16 @@ static void run_rr(Job *jobs, int n)
         }
 
         idx = queue[front++];
+        jobs[idx].status = JOB_RUNNING;
         slice = jobs[idx].remaining < RR_QUANTUM ? jobs[idx].remaining : RR_QUANTUM;
         printf("| J%d ", jobs[idx].id);
         time += slice;
         jobs[idx].remaining -= slice;
 
-        /* arrivals during this slice */
+        /* New arrivals during this quantum join the ready queue now. */
         for (i = 0; i < n; i++) {
             if (!in_queue[i] && jobs[i].remaining > 0 && jobs[i].arrival <= time) {
+                jobs[i].status = JOB_READY;
                 queue[rear++] = i;
                 in_queue[i] = 1;
             }
@@ -279,15 +343,62 @@ static void run_rr(Job *jobs, int n)
             jobs[idx].completion = time;
             jobs[idx].turnaround = jobs[idx].completion - jobs[idx].arrival;
             jobs[idx].waiting = jobs[idx].turnaround - jobs[idx].burst;
+            jobs[idx].status = JOB_TERMINATED;
             completed++;
             in_queue[idx] = 0;
         } else {
+            /* Quantum expired: back to READY at the end of the queue. */
+            jobs[idx].status = JOB_READY;
             queue[rear++] = idx;
         }
     }
     printf("| %d\n", time);
     print_results(jobs, n, "Round Robin",
                   "time quantum = 2; ready queue FIFO; tie-break on simultaneous arrival: smaller id");
+}
+
+/* Same job set through all three policies — for scheduling comparison (S09). */
+static void run_comparison(Job *base, int n)
+{
+    Job jobs[MAX_JOBS];
+    double tat[3], wt[3];
+
+    printf("\n=== Scheduling comparison (same job set) ===\n");
+    print_job_table(base, n);
+
+    memcpy(jobs, base, sizeof(Job) * n);
+    printf("\n[1/3] FCFS\n");
+    run_fcfs(jobs, n);
+    tat[0] = avg_turnaround(jobs, n);
+    wt[0] = avg_waiting(jobs, n);
+
+    memcpy(jobs, base, sizeof(Job) * n);
+    printf("\n[2/3] Round Robin\n");
+    run_rr(jobs, n);
+    tat[1] = avg_turnaround(jobs, n);
+    wt[1] = avg_waiting(jobs, n);
+
+    memcpy(jobs, base, sizeof(Job) * n);
+    printf("\n[3/3] Priority\n");
+    run_priority(jobs, n);
+    tat[2] = avg_turnaround(jobs, n);
+    wt[2] = avg_waiting(jobs, n);
+
+    printf("\n--- Comparison summary (same jobs) ---\n");
+    printf("%-12s  Avg TAT   Avg WT\n", "Policy");
+    printf("%-12s  %7.2f   %6.2f\n", "FCFS", tat[0], wt[0]);
+    printf("%-12s  %7.2f   %6.2f\n", "Round Robin", tat[1], wt[1]);
+    printf("%-12s  %7.2f   %6.2f\n", "Priority", tat[2], wt[2]);
+}
+
+void run_scheduling_compare_sample(void)
+{
+    Job jobs[MAX_JOBS];
+    int n = 0;
+
+    printf("\n=== Scheduling compare (built-in sample) ===\n");
+    load_sample(jobs, &n);
+    run_comparison(jobs, n);
 }
 
 void run_scheduling(void)
@@ -305,6 +416,7 @@ void run_scheduling(void)
     printf("  1. FCFS\n");
     printf("  2. Round Robin (quantum %d)\n", RR_QUANTUM);
     printf("  3. Non-preemptive Priority\n");
+    printf("  4. Compare all three on this job set\n");
     printf("Choice: ");
     if (scanf("%d", &algo) != 1) {
         printf("Error: expected a number.\n");
@@ -321,8 +433,11 @@ void run_scheduling(void)
     case 3:
         run_priority(jobs, n);
         break;
+    case 4:
+        run_comparison(jobs, n);
+        break;
     default:
-        printf("Error: choose 1, 2, or 3.\n");
+        printf("Error: choose 1, 2, 3, or 4.\n");
         break;
     }
 }

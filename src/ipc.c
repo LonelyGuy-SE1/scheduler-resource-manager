@@ -104,5 +104,6 @@ cleanup:
         close(fd);
         shm_unlink(shm_name);
     }
-    printf("IPC resources cleaned up.\n");
+    printf("IPC cleanup: munmap/close/shm_unlink + sem_close/sem_unlink done.\n");
+    printf("(Only objects created by this demo were removed.)\n");
 }

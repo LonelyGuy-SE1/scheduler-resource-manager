@@ -11,7 +11,8 @@ SRCS = $(SRC_DIR)/main.c \
        $(SRC_DIR)/logger.c \
        $(SRC_DIR)/ipc.c \
        $(SRC_DIR)/banker.c \
-       $(SRC_DIR)/workers.c
+       $(SRC_DIR)/workers.c \
+       $(SRC_DIR)/integrated.c
 
 OBJS   = $(patsubst $(SRC_DIR)/%.c,$(BUILD_DIR)/%.o,$(SRCS))
 TARGET = $(BUILD_DIR)/campuscompute

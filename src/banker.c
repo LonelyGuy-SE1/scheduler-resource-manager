@@ -28,6 +28,11 @@ static void print_vec(const char *title, int v[N_RES])
     printf("\n");
 }
 
+/*
+ * Banker's safety algorithm: repeatedly pick an unfinished process whose
+ * Need fits Work, then pretend it finishes and releases its Allocation.
+ * If every process can finish, the state is safe and sequence[] holds order.
+ */
 static int is_safe(int available[N_RES],
                    int allocation[N_PROC][N_RES],
                    int need[N_PROC][N_RES],
@@ -65,7 +70,7 @@ static int is_safe(int available[N_RES],
             }
         }
         if (!found) {
-            return 0; /* unsafe */
+            return 0; /* no candidate => unsafe */
         }
     }
     return 1;
@@ -102,10 +107,8 @@ static void run_instance(const char *label,
     }
 }
 
-void run_banker(void)
+void run_banker_demo(int which)
 {
-    int choice;
-
     /* Small safe instance: each Need fits after prior releases */
     int safe_avail[N_RES] = {3, 2, 2};
     int safe_max[N_PROC][N_RES] = {
@@ -132,6 +135,19 @@ void run_banker(void)
         {1, 0, 1},
     };
 
+    if (which == 1) {
+        run_instance("SAFE", safe_avail, safe_max, safe_alloc);
+    } else if (which == 2) {
+        run_instance("UNSAFE", unsafe_avail, unsafe_max, unsafe_alloc);
+    } else {
+        printf("Error: banker demo which must be 1 (safe) or 2 (unsafe).\n");
+    }
+}
+
+void run_banker(void)
+{
+    int choice;
+
     printf("\n=== Banker's Algorithm (FR5) ===\n");
     printf("  1. Safe-state demo\n");
     printf("  2. Unsafe-state demo\n");
@@ -141,10 +157,8 @@ void run_banker(void)
         return;
     }
 
-    if (choice == 1) {
-        run_instance("SAFE", safe_avail, safe_max, safe_alloc);
-    } else if (choice == 2) {
-        run_instance("UNSAFE", unsafe_avail, unsafe_max, unsafe_alloc);
+    if (choice == 1 || choice == 2) {
+        run_banker_demo(choice);
     } else {
         printf("Error: choose 1 or 2.\n");
     }
