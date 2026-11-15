@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include "campus.h"
 
-/* End-to-end walkthrough with a printed summary (S21). */
 void run_integrated(void)
 {
     printf("\n=== Integrated Demonstration (S21) ===\n");

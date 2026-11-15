@@ -27,11 +27,11 @@ typedef struct {
 const char *job_status_name(JobStatus s);
 
 void run_scheduling(void);
-void run_scheduling_compare_sample(void); /* non-interactive: sample jobs, all 3 policies */
+void run_scheduling_compare_sample(void);
 void run_logger(void);
 void run_ipc(void);
 void run_banker(void);
-void run_banker_demo(int which); /* 1=safe, 2=unsafe; non-interactive */
+void run_banker_demo(int which);
 void run_workers(void);
 void run_limits(void);
 void run_integrated(void);

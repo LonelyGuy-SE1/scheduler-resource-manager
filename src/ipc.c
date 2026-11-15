@@ -69,7 +69,6 @@ void run_ipc(void)
     }
 
     if (pid == 0) {
-        /* child writes lab stats into shared memory */
         shared->job_id = 42;
         shared->cpu_seconds = 7;
         strncpy(shared->note, "simulation done", sizeof(shared->note) - 1);
