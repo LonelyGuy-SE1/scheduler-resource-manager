@@ -25,7 +25,12 @@ int main(void)
 
     for (;;) {
         print_menu();
-        if (scanf("%d", &choice) != 1) {
+        int r = scanf("%d", &choice);
+        if (r == EOF) {
+            printf("\nGoodbye.\n");
+            return 0;
+        }
+        if (r != 1) {
             int c;
             while ((c = getchar()) != '\n' && c != EOF) {
             }

@@ -16,7 +16,6 @@ const char *job_status_name(JobStatus s)
 
 static void load_sample(Job *jobs, int *n)
 {
-    /* id, arrival, burst, priority — status starts NEW */
     Job sample[] = {
         {1, 0, 5, 2, JOB_NEW, 0, 0, 0, 0},
         {2, 1, 3, 1, JOB_NEW, 0, 0, 0, 0},
@@ -47,6 +46,8 @@ static int read_jobs(Job *jobs, int *n)
     printf("  2. Enter jobs manually\n");
     printf("Choice: ");
     if (scanf("%d", &choice) != 1) {
+        int c;
+        while ((c = getchar()) != '\n' && c != EOF) {}
         printf("Error: expected a number.\n");
         return -1;
     }
@@ -125,7 +126,6 @@ static void print_results(Job *jobs, int n, const char *algo, const char *rules)
     printf("Average waiting time:    %.2f\n", avg_wt / n);
 }
 
-/* Average waiting time only — used for side-by-side comparison. */
 static double avg_waiting(const Job *jobs, int n)
 {
     int i;
@@ -146,7 +146,6 @@ static double avg_turnaround(const Job *jobs, int n)
     return sum / n;
 }
 
-/* Sort index order by arrival, then id (tie-break). */
 static void sort_by_arrival(Job *jobs, int n, int *order)
 {
     int i, j, tmp;
@@ -230,7 +229,6 @@ static void run_priority(Job *jobs, int n)
         }
 
         if (best < 0) {
-            /* CPU idle: jump clock to next arrival */
             int next = -1;
             for (i = 0; i < n; i++) {
                 if (!done[i] && (next < 0 || jobs[i].arrival < jobs[next].arrival)) {
@@ -256,14 +254,11 @@ static void run_priority(Job *jobs, int n)
                   "higher priority number wins; tie-break: earlier arrival, then smaller id");
 }
 
-/*
- * Round Robin: fixed quantum RR_QUANTUM. Ready queue is FIFO.
- * Jobs that arrive during a slice are enqueued after the current slice
- * (before a preempted job is re-queued).
- */
+#define RR_QUEUE_CAPACITY (MAX_JOBS + 1)
+
 static void run_rr(Job *jobs, int n)
 {
-    int queue[MAX_JOBS * 4];
+    int queue[RR_QUEUE_CAPACITY];
     int front = 0, rear = 0;
     int in_queue[MAX_JOBS] = {0};
     int completed = 0, time = 0, i;
@@ -273,7 +268,8 @@ static void run_rr(Job *jobs, int n)
     for (i = 0; i < n; i++) {
         if (jobs[i].arrival == 0) {
             jobs[i].status = JOB_READY;
-            queue[rear++] = i;
+            queue[rear] = i;
+            rear = (rear + 1) % RR_QUEUE_CAPACITY;
             in_queue[i] = 1;
         }
     }
@@ -281,7 +277,7 @@ static void run_rr(Job *jobs, int n)
     printf("Lifecycle: NEW -> READY <-> RUNNING -> TERMINATED (preempt -> READY)\n");
     printf("Gantt (quantum=%d): ", RR_QUANTUM);
 
-    if (rear == 0) {
+    if (rear == front) {
         int earliest = jobs[0].arrival;
         for (i = 1; i < n; i++) {
             if (jobs[i].arrival < earliest) {
@@ -292,7 +288,8 @@ static void run_rr(Job *jobs, int n)
         for (i = 0; i < n; i++) {
             if (jobs[i].arrival == time) {
                 jobs[i].status = JOB_READY;
-                queue[rear++] = i;
+                queue[rear] = i;
+                rear = (rear + 1) % RR_QUEUE_CAPACITY;
                 in_queue[i] = 1;
             }
         }
@@ -316,25 +313,27 @@ static void run_rr(Job *jobs, int n)
             for (i = 0; i < n; i++) {
                 if (!in_queue[i] && jobs[i].remaining > 0 && jobs[i].arrival <= time) {
                     jobs[i].status = JOB_READY;
-                    queue[rear++] = i;
+                    queue[rear] = i;
+                    rear = (rear + 1) % RR_QUEUE_CAPACITY;
                     in_queue[i] = 1;
                 }
             }
             continue;
         }
 
-        idx = queue[front++];
+        idx = queue[front];
+        front = (front + 1) % RR_QUEUE_CAPACITY;
         jobs[idx].status = JOB_RUNNING;
         slice = jobs[idx].remaining < RR_QUANTUM ? jobs[idx].remaining : RR_QUANTUM;
         printf("| J%d ", jobs[idx].id);
         time += slice;
         jobs[idx].remaining -= slice;
 
-        /* New arrivals during this quantum join the ready queue now. */
         for (i = 0; i < n; i++) {
             if (!in_queue[i] && jobs[i].remaining > 0 && jobs[i].arrival <= time) {
                 jobs[i].status = JOB_READY;
-                queue[rear++] = i;
+                queue[rear] = i;
+                rear = (rear + 1) % RR_QUEUE_CAPACITY;
                 in_queue[i] = 1;
             }
         }
@@ -347,9 +346,9 @@ static void run_rr(Job *jobs, int n)
             completed++;
             in_queue[idx] = 0;
         } else {
-            /* Quantum expired: back to READY at the end of the queue. */
             jobs[idx].status = JOB_READY;
-            queue[rear++] = idx;
+            queue[rear] = idx;
+            rear = (rear + 1) % RR_QUEUE_CAPACITY;
         }
     }
     printf("| %d\n", time);
@@ -357,7 +356,6 @@ static void run_rr(Job *jobs, int n)
                   "time quantum = 2; ready queue FIFO; tie-break on simultaneous arrival: smaller id");
 }
 
-/* Same job set through all three policies — for scheduling comparison (S09). */
 static void run_comparison(Job *base, int n)
 {
     Job jobs[MAX_JOBS];
@@ -419,6 +417,8 @@ void run_scheduling(void)
     printf("  4. Compare all three on this job set\n");
     printf("Choice: ");
     if (scanf("%d", &algo) != 1) {
+        int c;
+        while ((c = getchar()) != '\n' && c != EOF) {}
         printf("Error: expected a number.\n");
         return;
     }
