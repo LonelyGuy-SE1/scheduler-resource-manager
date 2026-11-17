@@ -28,11 +28,6 @@ static void print_vec(const char *title, int v[N_RES])
     printf("\n");
 }
 
-/*
- * Banker's safety algorithm: repeatedly pick an unfinished process whose
- * Need fits Work, then pretend it finishes and releases its Allocation.
- * If every process can finish, the state is safe and sequence[] holds order.
- */
 static int is_safe(int available[N_RES],
                    int allocation[N_PROC][N_RES],
                    int need[N_PROC][N_RES],
@@ -54,6 +49,8 @@ static int is_safe(int available[N_RES],
             }
             for (j = 0; j < N_RES; j++) {
                 if (need[i][j] > work[j]) {
+                    printf("  Check P%d: need[%d]=%d > work[%d]=%d (cannot proceed)\n",
+                           i, j, need[i][j], j, work[j]);
                     break;
                 }
             }
@@ -70,7 +67,8 @@ static int is_safe(int available[N_RES],
             }
         }
         if (!found) {
-            return 0; /* no candidate => unsafe */
+            printf("  Safety check halted: no remaining process can be satisfied with current work.\n");
+            return 0;
         }
     }
     return 1;
@@ -109,7 +107,6 @@ static void run_instance(const char *label,
 
 void run_banker_demo(int which)
 {
-    /* Small safe instance: each Need fits after prior releases */
     int safe_avail[N_RES] = {3, 2, 2};
     int safe_max[N_PROC][N_RES] = {
         {2, 1, 1},
@@ -122,17 +119,18 @@ void run_banker_demo(int which)
         {1, 0, 1},
     };
 
-    /* Same Max/Allocation but Available is zero → unsafe */
-    int unsafe_avail[N_RES] = {0, 0, 0};
+    /* Available is non-zero (some resources are free), but each process
+       needs more than is currently available or deadlocks on hold-and-wait */
+    int unsafe_avail[N_RES] = {1, 0, 0};
     int unsafe_max[N_PROC][N_RES] = {
-        {2, 1, 1},
-        {2, 2, 1},
+        {3, 2, 2},
+        {2, 2, 2},
         {2, 1, 2},
     };
     int unsafe_alloc[N_PROC][N_RES] = {
-        {1, 0, 0},
         {1, 1, 0},
         {1, 0, 1},
+        {0, 1, 1},
     };
 
     if (which == 1) {
@@ -153,6 +151,8 @@ void run_banker(void)
     printf("  2. Unsafe-state demo\n");
     printf("Choice: ");
     if (scanf("%d", &choice) != 1) {
+        int c;
+        while ((c = getchar()) != '\n' && c != EOF) {}
         printf("Error: expected a number.\n");
         return;
     }
