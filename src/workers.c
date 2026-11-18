@@ -1,5 +1,6 @@
 #include <fcntl.h>
 #include <semaphore.h>
+#include <signal.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/mman.h>
@@ -32,7 +33,6 @@ void run_workers(void)
     printf("      not an unexpected real OS fault.\n");
     fflush(stdout);
 
-    /* Normal completion */
     pid = fork();
     if (pid < 0) {
         perror("fork");
@@ -46,7 +46,6 @@ void run_workers(void)
     waitpid(pid, &status, 0);
     report_wait(pid, status, "Worker A (normal)");
 
-    /* Controlled simulated failure — intentional null deref to get SIGSEGV */
     fflush(stdout);
     pid = fork();
     if (pid < 0) {
@@ -60,11 +59,19 @@ void run_workers(void)
             volatile int *crash = NULL;
             *crash = 1;
         }
-        _exit(1); /* not reached if signal delivered */
+        _exit(1);
     }
     waitpid(pid, &status, 0);
     report_wait(pid, status, "Worker B (SIMULATED failure)");
     printf("Parent detected simulated failure via waitpid/WIFSIGNALED.\n");
+}
+
+static void handle_sigxcpu(int sig)
+{
+    (void)sig;
+    /* write() is async-signal-safe */
+    const char msg[] = "Child: caught SIGXCPU (soft limit hit)! Continuing towards hard limit...\n";
+    (void)write(STDOUT_FILENO, msg, sizeof(msg) - 1);
 }
 
 void run_limits(void)
@@ -83,29 +90,29 @@ void run_limits(void)
     }
 
     if (pid == 0) {
-        lim.rlim_cur = 1; /* 1 second of CPU */
-        lim.rlim_max = 1;
+        /* Set up signal handler so child catches soft limit (SIGXCPU) */
+        struct sigaction sa;
+        memset(&sa, 0, sizeof(sa));
+        sa.sa_handler = handle_sigxcpu;
+        sigaction(SIGXCPU, &sa, NULL);
+
+        lim.rlim_cur = 1; /* Soft limit: 1 CPU second -> triggers SIGXCPU (24) */
+        lim.rlim_max = 2; /* Hard limit: 2 CPU seconds -> triggers SIGKILL (9) */
         if (setrlimit(RLIMIT_CPU, &lim) != 0) {
             perror("setrlimit");
             _exit(1);
         }
-        printf("Child: RLIMIT_CPU soft/hard = 1 second; entering busy loop...\n");
+        printf("Child: RLIMIT_CPU soft=1s, hard=2s; entering busy loop...\n");
         fflush(stdout);
         for (;;) {
-            /* burn CPU until the kernel sends SIGXCPU / kills the process */
         }
     }
 
     waitpid(pid, &status, 0);
     report_wait(pid, status, "Limited worker");
-    printf("Observed effect: setrlimit(RLIMIT_CPU) capped CPU time; "
-           "the busy child was stopped by the kernel (typically SIGXCPU/SIGKILL).\n");
+    printf("Observed effect: Child caught soft limit (SIGXCPU=24), then kernel killed it at hard limit (SIGKILL=9).\n");
 }
 
-/*
- * Create then destroy IPC objects and confirm they are gone (S20).
- * Only touches names created by this program.
- */
 void run_cleanup_check(void)
 {
     char shm_name[64];
