@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CampusCompute</title>
+  <link rel="icon" type="image/jpeg" href="/favicon.jpg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;800;900&family=JetBrains+Mono:wght@600;800&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Custom Neo-brutalist Scrollbar */
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #fdf6d8;
+      border: 2px solid #111;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #111;
+      border: 1px solid #fdf6d8;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #fed7aa;
+      border: 2px solid #111;
+    }
+
+    /* Terminal specific scrollbar */
+    .terminal-card ::-webkit-scrollbar-track {
+      background: #27272a;
+      border: 2px solid #3f3f46;
+    }
+
+    .terminal-card ::-webkit-scrollbar-thumb {
+      background: #4ade80;
+      border: 1px solid #18181b;
+    }
+
+    .terminal-card ::-webkit-scrollbar-thumb:hover {
+      background: #86efac;
+    }
+
+    body {
+      background: #fdf6d8;
+      font-family: 'Space Grotesk', sans-serif;
+      color: #111;
+      padding: 24px;
+      max-width: 980px;
+      margin: 0 auto;
+    }
+
+    .top-box {
+      background: #ffffff;
+      border: 3px solid #111;
+      box-shadow: 4px 4px 0px #111;
+      padding: 18px 22px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    h1 {
+      font-size: 1.8rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: -0.5px;
+    }
+
+    .controls-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .neo-btn {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      padding: 12px 14px;
+      border: 3px solid #111;
+      box-shadow: 3px 3px 0px #111;
+      cursor: pointer;
+      text-align: left;
+      transition: all 0.1s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .neo-btn small {
+      font-size: 0.72rem;
+      font-weight: 700;
+      opacity: 0.75;
+    }
+
+    .neo-btn:hover {
+      transform: translate(-2px, -2px);
+      box-shadow: 5px 5px 0px #111;
+    }
+
+    .neo-btn:active {
+      transform: translate(2px, 2px);
+      box-shadow: 1px 1px 0px #111;
+    }
+
+    .btn-green  { background: #bbf7d0; }
+    .btn-pink   { background: #fbcfe8; }
+    .btn-cyan   { background: #bae6fd; }
+    .btn-purple { background: #e9d5ff; }
+    .btn-orange { background: #fed7aa; }
+    .btn-white  { background: #ffffff; }
+
+    .card {
+      background: #ffffff;
+      border: 3px solid #111;
+      box-shadow: 4px 4px 0px #111;
+      padding: 18px;
+      margin-bottom: 20px;
+    }
+
+    .card h2 {
+      font-size: 1.15rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      border-bottom: 2px solid #111;
+      padding-bottom: 8px;
+      margin-bottom: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 800;
+      padding: 2px 6px;
+      border: 2px solid #111;
+      background: #fef08a;
+    }
+
+    .gantt-item {
+      margin-bottom: 12px;
+    }
+    .gantt-item-title {
+      font-size: 0.82rem;
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+    .gantt-bar {
+      display: flex;
+      height: 30px;
+      border: 2px solid #111;
+      background: #f3f4f6;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      font-weight: 800;
+      overflow-x: auto;
+    }
+    .g-block {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-right: 2px solid #111;
+      padding: 0 8px;
+      white-space: nowrap;
+    }
+    .g-block:last-child { border-right: none; }
+    .c1 { background: #fecaca; }
+    .c2 { background: #bfdbfe; }
+    .c3 { background: #bbf7d0; }
+    .c4 { background: #fef08a; }
+
+    .terminal-card {
+      background: #18181b;
+      color: #4ade80;
+      border: 3px solid #111;
+      box-shadow: 4px 4px 0px #111;
+      padding: 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+    }
+
+    .terminal-header {
+      color: #fafafa;
+      font-weight: 800;
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 2px solid #3f3f46;
+      padding-bottom: 8px;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      font-family: 'Space Grotesk', sans-serif;
+    }
+
+    #output {
+      max-height: 340px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+      line-height: 1.4;
+    }
+
+    .active-run {
+      color: #fde047;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <div class="top-box">
+    <div>
+      <h1>CampusCompute</h1>
+    </div>
+    <button class="neo-btn btn-green" style="padding: 8px 16px;" onclick="runDemo(7)">
+      Run Complete Demo
+      <small>Executes all 7 steps in C</small>
+    </button>
+  </div>
+
+  <!-- ACTION BUTTONS -->
+  <div class="controls-grid">
+    <button class="neo-btn btn-pink" onclick="runDemo(1)">
+      1. CPU Schedulers
+      <small>FCFS, Round-Robin, Priority</small>
+    </button>
+    <button class="neo-btn btn-cyan" onclick="runDemo(2)">
+      2. Activity Logger
+      <small>Mutex and 8-slot queue</small>
+    </button>
+    <button class="neo-btn btn-purple" onclick="runDemo(3)">
+      3. Shared Memory IPC
+      <small>mmap and Named Semaphore</small>
+    </button>
+    <button class="neo-btn btn-orange" onclick="runDemo(4)">
+      4. Banker Deadlock
+      <small>Runs Safe and Unsafe States</small>
+    </button>
+    <button class="neo-btn btn-white" onclick="runDemo(5)">
+      5. Worker Crash Test
+      <small>exit(0) vs SIGSEGV</small>
+    </button>
+    <button class="neo-btn btn-white" onclick="runDemo(6)">
+      6. CPU Time Limit
+      <small>setrlimit(RLIMIT_CPU)</small>
+    </button>
+  </div>
+
+  <!-- SCHEDULING TIMELINES CARD (Visible only when Scheduling or Complete Demo is run) -->
+  <div class="card" id="sched-card" style="display: none;">
+    <h2>
+      <span>Live Scheduling Timelines (From C Engine)</span>
+      <span class="badge" id="sched-status-badge">Loaded on Run</span>
+    </h2>
+
+    <div class="gantt-item">
+      <div class="gantt-item-title" id="fcfs-label">FCFS</div>
+      <div class="gantt-bar" id="fcfs-bar"></div>
+    </div>
+
+    <div class="gantt-item">
+      <div class="gantt-item-title" id="rr-label">Round Robin Q=2</div>
+      <div class="gantt-bar" id="rr-bar"></div>
+    </div>
+
+    <div class="gantt-item">
+      <div class="gantt-item-title" id="prio-label">Priority</div>
+      <div class="gantt-bar" id="prio-bar"></div>
+    </div>
+  </div>
+
+  <!-- TERMINAL OUTPUT -->
+  <div class="terminal-card">
+    <div class="terminal-header">
+      <span>C Binary Execution Log</span>
+      <span id="run-status" style="color: #86efac;">READY</span>
+    </div>
+    <div id="output">Click any button above to run that feature and view the real C engine output here.</div>
+  </div>
+
+  <script>
+    const colorMap = {
+      'J1': 'c1',
+      'J2': 'c2',
+      'J3': 'c3',
+      'J4': 'c4'
+    };
+
+    function renderGantt(containerId, slices) {
+      const bar = document.getElementById(containerId);
+      if (!slices || slices.length === 0) return;
+      bar.innerHTML = '';
+      slices.forEach(s => {
+        const div = document.createElement('div');
+        div.className = 'g-block ' + (colorMap[s] || 'c1');
+        div.style.flex = '1';
+        div.innerText = s;
+        bar.appendChild(div);
+      });
+    }
+
+    async function runDemo(choice) {
+      const out = document.getElementById('output');
+      const status = document.getElementById('run-status');
+      const schedCard = document.getElementById('sched-card');
+      
+      status.innerText = "RUNNING...";
+      status.className = "active-run";
+      out.innerText = `Calling C binary with option ${choice}...\n`;
+
+      try {
+        const res = await fetch('/api/run', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ choice: choice })
+        });
+        const data = await res.json();
+        out.innerText = data.output || data.error || "Completed with no output.";
+        status.innerText = "SUCCESS (EXIT 0)";
+        status.className = "";
+
+        // Only show Gantt charts if the user clicked Scheduling (1) or Complete Demo (7)
+        if (data.parsed && data.parsed.gantt && data.parsed.gantt.fcfs.length > 0) {
+          schedCard.style.display = 'block';
+          const p = data.parsed;
+          document.getElementById('sched-status-badge').innerText = "Live Output (C Binary)";
+          document.getElementById('fcfs-label').innerText = `FCFS (Average Wait: ${p.metrics.fcfs_wt} units)`;
+          renderGantt('fcfs-bar', p.gantt.fcfs);
+
+          document.getElementById('rr-label').innerText = `Round Robin Q=2 (Average Wait: ${p.metrics.rr_wt} units)`;
+          renderGantt('rr-bar', p.gantt.rr);
+
+          document.getElementById('prio-label').innerText = `Priority (Average Wait: ${p.metrics.priority_wt} units)`;
+          renderGantt('prio-bar', p.gantt.priority);
+        } else {
+          // Hide Gantt chart for logger, IPC, Banker, workers, limits so it doesn't confuse
+          schedCard.style.display = 'none';
+        }
+      } catch (e) {
+        out.innerText = "Error contacting server: " + e.message;
+        status.innerText = "ERROR";
+      }
+    }
+  </script>
+</body>
+</html>
